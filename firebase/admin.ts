@@ -1,50 +1,25 @@
-import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getAuth, Auth } from "firebase-admin/auth";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
-// Initialize Firebase Admin SDK
-function initFirebaseAdmin(): { auth: Auth; db: Firestore } {
-  const apps = getApps();
+if (!getApps().length) {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-  if (!apps.length) {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    // Check if all required credentials are available
-    if (projectId && clientEmail && privateKey) {
-      try {
-        initializeApp({
-          credential: cert({
-            projectId,
-            clientEmail,
-            privateKey,
-          }),
-        });
-      } catch (error) {
-        console.warn("Firebase Admin initialization failed:", error);
-        // Continue with uninitialized services for development
-      }
-    } else {
-      console.warn(
-        "Firebase Admin credentials not fully configured. Using mock mode for development."
-      );
-    }
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      `Missing Firebase Admin credentials. Check your .env.local file.\n` +
+      `FIREBASE_PROJECT_ID: ${!!projectId}\n` +
+      `FIREBASE_CLIENT_EMAIL: ${!!clientEmail}\n` +
+      `FIREBASE_PRIVATE_KEY: ${!!privateKey}`
+    );
   }
 
-  try {
-    return {
-      auth: getAuth(),
-      db: getFirestore(),
-    };
-  } catch (error) {
-    console.warn("Firebase services unavailable in current environment");
-    // Return mock objects to prevent crashes during development
-    return {
-      auth: null as any,
-      db: null as any,
-    };
-  }
+  initializeApp({
+    credential: cert({ projectId, clientEmail, privateKey }),
+  });
 }
 
-export const { auth, db } = initFirebaseAdmin();
+export const auth = getAuth();
+export const db = getFirestore();

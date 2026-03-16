@@ -88,9 +88,34 @@ const AuthForm = ({ type }: { type: FormType }) => {
         toast.success("Signed in successfully.");
         router.push("/");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
-      toast.error(`There was an error: ${error}`);
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          toast.error("This email is already registered. Please sign in instead.");
+          router.push("/sign-in");
+          break;
+        case "auth/invalid-email":
+          toast.error("Invalid email address format.");
+          break;
+        case "auth/weak-password":
+          toast.error("Password must be at least 6 characters.");
+          break;
+        case "auth/user-not-found":
+          toast.error("No account found with this email. Please sign up.");
+          break;
+        case "auth/wrong-password":
+          toast.error("Incorrect password. Please try again.");
+          break;
+        case "auth/invalid-credential":
+          toast.error("Invalid email or password. Please try again.");
+          break;
+        case "auth/too-many-requests":
+          toast.error("Too many attempts. Please try again later.");
+          break;
+        default:
+          toast.error(error.message || "Something went wrong. Please try again.");
+      }
     }
   };
 

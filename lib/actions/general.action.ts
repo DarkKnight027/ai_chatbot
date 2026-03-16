@@ -62,14 +62,35 @@ export async function createFeedback(params: CreateFeedbackParams) {
     return { success: true, feedbackId: feedbackRef.id };
   } catch (error) {
     console.error("Error saving feedback:", error);
-    return { success: false };
+    return { success: false, feedbackId: null };
   }
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null> {
   const interview = await db.collection("interviews").doc(id).get();
-
   return interview.data() as Interview | null;
+}
+
+export async function createInterview(params: {
+  userId: string;
+  role: string;
+  type: string;
+  techstack: string[];
+  level: string;
+  questions: string[];
+  finalized: boolean;
+}) {
+  try {
+    const interviewRef = db.collection("interviews").doc();
+    await interviewRef.set({
+      ...params,
+      createdAt: new Date().toISOString(),
+    });
+    return { success: true, interviewId: interviewRef.id };
+  } catch (error) {
+    console.error("Error creating interview:", error);
+    return { success: false, interviewId: null }; 
+  }
 }
 
 export async function getFeedbackByInterviewId(
@@ -97,29 +118,34 @@ export async function getLatestInterviews(
 
   const interviews = await db
     .collection("interviews")
-    .orderBy("createdAt", "desc")
     .where("finalized", "==", true)
-    .where("userId", "!=", userId)
     .limit(limit)
     .get();
 
-  return interviews.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Interview[];
+  return interviews.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() } as Interview))
+    .filter((interview) => !userId || interview.userId !== userId)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 }
 
 export async function getInterviewsByUserId(
   userId: string
 ): Promise<Interview[] | null> {
+  if (!userId) return [];
+
+  
   const interviews = await db
     .collection("interviews")
     .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
     .get();
 
-  return interviews.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Interview[];
+  return interviews.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() } as Interview))
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 }

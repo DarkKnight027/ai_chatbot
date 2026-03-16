@@ -31,6 +31,15 @@ export async function signUp(params: SignUpParams) {
   try {
     // check if user exists in db
     const userRecord = await db.collection("users").doc(uid).get();
+
+    console.log("=== SIGNUP DEBUG ===");
+  console.log("UID:", uid);
+  console.log("Email:", email);
+  console.log("DB instance:", !!db);
+  console.log("Auth instance:", !!auth);
+  console.log("Project ID:", process.env.FIREBASE_PROJECT_ID);
+  console.log("Client Email:", process.env.FIREBASE_CLIENT_EMAIL);
+  console.log("Private Key exists:", !!process.env.FIREBASE_PRIVATE_KEY);
     if (userRecord.exists)
       return {
         success: false,

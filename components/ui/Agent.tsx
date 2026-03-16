@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { vapi } from "@/lib/vapi.sdk";
 import { interviewer } from "@/constants";
-import { createFeedback } from "@/lib/actions/general.action";
+import { createFeedback, createInterview } from "@/lib/actions/general.action";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -105,9 +105,53 @@ const Agent = ({
       }
     };
 
+    const handleSaveInterview = async (messages: SavedMessage[]) => {
+      console.log("handleSaveInterview");
+
+      // Extract questions asked by the assistant during the conversation
+      const extractedQuestions = messages
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.content)
+        .slice(0, 10);
+
+      // Try to detect role/techstack from conversation
+      const fullTranscript = messages
+        .map((m) => m.content)
+        .join(" ")
+        .toLowerCase();
+
+      // Basic tech detection from conversation
+      const techKeywords = [
+        "react", "node", "python", "javascript", "typescript",
+        "next.js", "express", "mongodb", "firebase", "aws",
+        "docker", "kubernetes", "sql", "css", "html",
+      ];
+      const detectedTech = techKeywords.filter((tech) =>
+        fullTranscript.includes(tech)
+      );
+
+      const result = await createInterview({
+        userId: userId!,
+        role: "Software Developer",
+        type: "Technical",
+        techstack: detectedTech.length > 0 ? detectedTech : ["general"],
+        level: "Junior",
+        questions: extractedQuestions,
+        finalized: true,
+      });
+
+      if (result.success) {
+        console.log("Interview saved successfully:", result.interviewId);
+      } else {
+        console.log("Failed to save interview");
+      }
+
+      router.push("/");
+    };
+
     if (callStatus === CallStatus.FINISHED) {
       if (type === "generate") {
-        router.push("/");
+        handleSaveInterview(messages);
       } else {
         handleGenerateFeedback(messages);
       }
@@ -117,26 +161,38 @@ const Agent = ({
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);
 
-    if (type === "generate") {
-      await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, {
-        variableValues: {
-          username: userName,
-          userid: userId,
-        },
-      });
-    } else {
-      let formattedQuestions = "";
-      if (questions) {
-        formattedQuestions = questions
-          .map((question) => `- ${question}`)
-          .join("\n");
-      }
+    try {
+      if (type === "generate") {
+        const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
+        if (!assistantId) {
+          console.error("NEXT_PUBLIC_VAPI_ASSISTANT_ID is not set!");
+          setCallStatus(CallStatus.INACTIVE);
+          return;
+        }
 
-      await vapi.start(interviewer, {
-        variableValues: {
-          questions: formattedQuestions,
-        },
-      });
+        await vapi.start(assistantId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        });
+      } else {
+        let formattedQuestions = "";
+        if (questions) {
+          formattedQuestions = questions
+            .map((question) => `- ${question}`)
+            .join("\n");
+        }
+
+        await vapi.start(interviewer, {
+          variableValues: {
+            questions: formattedQuestions,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Vapi start error:", error);
+      setCallStatus(CallStatus.INACTIVE);
     }
   };
 
@@ -203,7 +259,6 @@ const Agent = ({
                 callStatus !== "CONNECTING" && "hidden"
               )}
             />
-
             <span className="relative">
               {callStatus === "INACTIVE" || callStatus === "FINISHED"
                 ? "Call"
