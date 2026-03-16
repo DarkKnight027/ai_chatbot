@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/firebase";
+import { auth } from "@/firebase/client";
 
 import { Form } from "@/components/ui/Form";
 import { Button } from "@/components/ui/button";
